@@ -56,7 +56,7 @@ source_type = st.sidebar.radio("Pilih Input", ["Upload Image", "Upload Video", "
 # FUNCTION: Convert frame with detection
 
 def detect_image(img):
-    results = model.predict(img, conf=0.1)
+    results = model.predict(img, conf=confidence)
     plotted = results[0].plot()
     num_boxes = len(results[0].boxes)
     st.sidebar.success(f"Total Deteksi: {num_boxes}")
