@@ -89,7 +89,15 @@ elif source_type == "Upload Video":
         tfile.write(vid_file.read())
         tfile.flush()
 
-        st.video(tfile.name)
+        st.success("Video berhasil diupload!")
+
+        # PREVIEW SATU FRAME SAJA (thumbnail)
+        cap_preview = cv2.VideoCapture(tfile.name)
+        ret, preview_frame = cap_preview.read()
+        cap_preview.release()
+
+        if ret:
+            st.image(preview_frame, channels="BGR", caption="Video Preview", use_column_width=True)
 
         # UI buttons
         cols = st.columns([1, 1, 2])
@@ -104,8 +112,7 @@ elif source_type == "Upload Video":
                 index=1
             )
 
-        # tempat menampilkan frame
-        stframe = st.empty()
+        stframe = st.empty()        # tempat output deteksi
         fps_box = st.sidebar.empty()
         det_box = st.sidebar.empty()
 
@@ -129,14 +136,14 @@ elif source_type == "Upload Video":
                 if not ret:
                     break
 
-                # Resize frame agar inference lebih cepat
+                # Resize untuk speed
                 h, w = frame.shape[:2]
                 scale = target_size / max(h, w)
                 frame_resized = cv2.resize(frame, (int(w * scale), int(h * scale)))
 
                 # Predict
                 results = model.predict(
-                    frame_resized, 
+                    frame_resized,
                     conf=confidence,
                     verbose=False
                 )
@@ -148,18 +155,16 @@ elif source_type == "Upload Video":
                 fps = 1 / (now - prev_time)
                 prev_time = now
 
-                # Streamlit render
+                # Tampilkan ke Streamlit
                 stframe.image(annotated, channels="BGR", use_column_width=True)
+
                 fps_box.info(f"FPS Realtime: **{fps:.2f}**")
                 det_box.success(f"Total Deteksi: **{len(results[0].boxes)}**")
 
-                # Jeda kecil agar UI tidak freeze
                 time.sleep(0.001)
 
             cap.release()
             fps_box.warning("Deteksi dihentikan.")
-
-
 
 # WEBCAM REAL-TIME
 elif source_type == "Webcam":
