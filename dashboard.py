@@ -138,7 +138,7 @@ elif source_type == "Upload Video":
             det_box.success(f"Deteksi: **{len(results[0].boxes)}**")
 
             # rerun 1 frame berikutnya (tanpa flicker)
-            st.experimental_rerun()
+            st.rerun()
 
         else:
             # tampilkan preview frame pertama
