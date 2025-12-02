@@ -57,7 +57,11 @@ source_type = st.sidebar.radio("Pilih Input", ["Upload Image", "Upload Video", "
 
 def detect_image(img):
     results = model.predict(img, conf=confidence)
-    return results[0].plot()
+    plotted = results[0].plot()
+    num_boxes = len(results[0].boxes)
+    st.sidebar.success(f"Total Deteksi: {num_boxes}")
+    return plotted
+
 
 # UPLOAD IMAGE
 
