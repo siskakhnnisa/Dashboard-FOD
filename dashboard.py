@@ -88,19 +88,42 @@ elif source_type == "Upload Video":
 
         st.video(tfile.name)
 
-        if st.button("🚀 Jalankan Deteksi Video"):
+        if st.button("🚀 Jalankan Deteksi Video (Realtime)"):
+            
             stframe = st.empty()
             cap = cv2.VideoCapture(tfile.name)
-
-            while True:
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)   
+            # Realtime processing
+            while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
                     break
 
-                results = model(frame, conf=confidence)
-                annotated = results[0].plot()
+                h, w = frame.shape[:2]
+                if max(h, w) > 1280:
+                    scale = 1280 / max(h, w)
+                    frame = cv2.resize(frame, None, fx=scale, fy=scale)
 
-                stframe.image(annotated, channels="BGR", use_column_width=True)
+                start_time = time.time()
+
+                # STREAMING MODE => Faster inference
+                results = model.predict(frame, conf=confidence, stream=True)
+
+                # Ambil frame terdeteksi
+                for r in results:
+                    annotated = r.plot()
+
+                # Compute FPS
+                fps = 1 / (time.time() - start_time)
+
+                # Output ke Streamlit (lebih cepat)
+                stframe.image(
+                    annotated,
+                    channels="BGR",
+                    use_column_width=False
+                )
+
+                st.sidebar.write(f"FPS: {fps:.2f}")
 
             cap.release()
 
