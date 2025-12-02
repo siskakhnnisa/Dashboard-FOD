@@ -79,53 +79,69 @@ if source_type == "Upload Image":
 
 
 # UPLOAD VIDEO
+
 elif source_type == "Upload Video":
     vid_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
 
     if vid_file:
-        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
         tfile.write(vid_file.read())
+        tfile.flush()
 
         st.video(tfile.name)
 
-        if st.button("🚀 Jalankan Deteksi Video (Realtime)"):
-            
-            stframe = st.empty()
-            cap = cv2.VideoCapture(tfile.name)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)   
-            # Realtime processing
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
+        # session_state control
+        if "video_running" not in st.session_state:
+            st.session_state.video_running = False
 
-                h, w = frame.shape[:2]
-                if max(h, w) > 1280:
-                    scale = 1280 / max(h, w)
-                    frame = cv2.resize(frame, None, fx=scale, fy=scale)
+        cols = st.columns([1, 1, 1])
+        with cols[0]:
+            if st.button("🚀 Jalankan Deteksi Video (Realtime)"):
+                st.session_state.video_running = True
+        with cols[1]:
+            if st.button("⏹️ Hentikan Deteksi"):
+                st.session_state.video_running = False
+        with cols[2]:
+            # optional: choose target inference size for speed
+            target_size = st.selectbox("Max side (px) untuk inference", [640, 800, 960, 1280], index=0)
 
-                start_time = time.time()
+        stframe = st.empty()
+        info_placeholder = st.sidebar.empty()
 
-                # STREAMING MODE => Faster inference
-                results = model.predict(frame, conf=confidence, stream=True)
-
-                # Ambil frame terdeteksi
+        if st.session_state.video_running:
+            try:
+                prev_time = None
+                # Let YOLO iterate over the video file frames (internal streaming)
+                results = model(source=tfile.name, conf=confidence, stream=True, imgsz=target_size)
                 for r in results:
-                    annotated = r.plot()
+                    # if user stopped from UI, break gracefully
+                    if not st.session_state.video_running:
+                        break
 
-                # Compute FPS
-                fps = 1 / (time.time() - start_time)
+                    # r is a Results object for one frame
+                    annotated = r.plot()  # BGR image
+                    # fps calc
+                    now = time.time()
+                    if prev_time is None:
+                        fps = 0.0
+                    else:
+                        fps = 1.0 / (now - prev_time) if (now - prev_time) > 0 else 0.0
+                    prev_time = now
 
-                # Output ke Streamlit (lebih cepat)
-                stframe.image(
-                    annotated,
-                    channels="BGR",
-                    use_column_width=False
-                )
+                    # display
+                    stframe.image(annotated, channels="BGR", use_column_width=True)
 
-                st.sidebar.write(f"FPS: {fps:.2f}")
+                    info_placeholder.write(f"FPS: {fps:.2f}  |  Deteksi: {len(r.boxes)}")
 
-            cap.release()
+                    # tiny sleep to yield control back to Streamlit (prevents UI freeze)
+                    time.sleep(0.001)
+
+            except Exception as e:
+                st.error(f"Terjadi error saat deteksi video: {e}")
+            finally:
+                st.session_state.video_running = False
+                info_placeholder.write("Selesai.")
+
 
 
 # WEBCAM REAL-TIME
