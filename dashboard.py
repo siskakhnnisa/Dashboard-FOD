@@ -84,63 +84,80 @@ elif source_type == "Upload Video":
     vid_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
 
     if vid_file:
+        # Simpan video ke file sementara
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
         tfile.write(vid_file.read())
         tfile.flush()
 
         st.video(tfile.name)
 
-        # session_state control
-        if "video_running" not in st.session_state:
-            st.session_state.video_running = False
-
-        cols = st.columns([1, 1, 1])
+        # UI buttons
+        cols = st.columns([1, 1, 2])
         with cols[0]:
-            if st.button("🚀 Jalankan Deteksi Video (Realtime)"):
-                st.session_state.video_running = True
+            start_btn = st.button("🚀 Mulai Deteksi Realtime")
         with cols[1]:
-            if st.button("⏹️ Hentikan Deteksi"):
-                st.session_state.video_running = False
+            stop_btn = st.button("⏹️ Stop")
         with cols[2]:
-            # optional: choose target inference size for speed
-            target_size = st.selectbox("Max side (px) untuk inference", [640, 800, 960, 1280], index=0)
+            target_size = st.selectbox(
+                "Inference Resolution (lebih kecil = lebih cepat)",
+                [480, 640, 800, 960, 1280],
+                index=1
+            )
 
+        # tempat menampilkan frame
         stframe = st.empty()
-        info_placeholder = st.sidebar.empty()
+        fps_box = st.sidebar.empty()
+        det_box = st.sidebar.empty()
 
-        if st.session_state.video_running:
-            try:
-                prev_time = None
-                # Let YOLO iterate over the video file frames (internal streaming)
-                results = model(source=tfile.name, conf=confidence, stream=True, imgsz=target_size)
-                for r in results:
-                    # if user stopped from UI, break gracefully
-                    if not st.session_state.video_running:
-                        break
+        # state
+        if "run_video" not in st.session_state:
+            st.session_state.run_video = False
 
-                    # r is a Results object for one frame
-                    annotated = r.plot()  # BGR image
-                    # fps calc
-                    now = time.time()
-                    if prev_time is None:
-                        fps = 0.0
-                    else:
-                        fps = 1.0 / (now - prev_time) if (now - prev_time) > 0 else 0.0
-                    prev_time = now
+        if start_btn:
+            st.session_state.run_video = True
+        if stop_btn:
+            st.session_state.run_video = False
 
-                    # display
-                    stframe.image(annotated, channels="BGR", use_column_width=True)
+        # PROSES DETEKSI REALTIME
+        if st.session_state.run_video:
+            cap = cv2.VideoCapture(tfile.name)
 
-                    info_placeholder.write(f"FPS: {fps:.2f}  |  Deteksi: {len(r.boxes)}")
+            prev_time = time.time()
 
-                    # tiny sleep to yield control back to Streamlit (prevents UI freeze)
-                    time.sleep(0.001)
+            while st.session_state.run_video:
+                ret, frame = cap.read()
+                if not ret:
+                    break
 
-            except Exception as e:
-                st.error(f"Terjadi error saat deteksi video: {e}")
-            finally:
-                st.session_state.video_running = False
-                info_placeholder.write("Selesai.")
+                # Resize frame agar inference lebih cepat
+                h, w = frame.shape[:2]
+                scale = target_size / max(h, w)
+                frame_resized = cv2.resize(frame, (int(w * scale), int(h * scale)))
+
+                # Predict
+                results = model.predict(
+                    frame_resized, 
+                    conf=confidence,
+                    verbose=False
+                )
+
+                annotated = results[0].plot()
+
+                # Hitung FPS
+                now = time.time()
+                fps = 1 / (now - prev_time)
+                prev_time = now
+
+                # Streamlit render
+                stframe.image(annotated, channels="BGR", use_column_width=True)
+                fps_box.info(f"FPS Realtime: **{fps:.2f}**")
+                det_box.success(f"Total Deteksi: **{len(results[0].boxes)}**")
+
+                # Jeda kecil agar UI tidak freeze
+                time.sleep(0.001)
+
+            cap.release()
+            fps_box.warning("Deteksi dihentikan.")
 
 
 
