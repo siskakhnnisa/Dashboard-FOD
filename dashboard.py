@@ -79,6 +79,9 @@ if source_type == "Upload Image":
 
 
 # UPLOAD VIDEO
+# ================================
+#   UPLOAD VIDEO - RECOMMENDED FIX
+# ================================
 elif source_type == "Upload Video":
 
     vid_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
@@ -138,7 +141,7 @@ elif source_type == "Upload Video":
             det_box.success(f"Deteksi: **{len(results[0].boxes)}**")
 
             # rerun 1 frame berikutnya (tanpa flicker)
-            st.rerun()
+            st.experimental_rerun()
 
         else:
             # tampilkan preview frame pertama
@@ -146,6 +149,7 @@ elif source_type == "Upload Video":
             ret, frame = cap.read()
             if ret:
                 st.image(frame, channels="BGR", caption="Preview Video", use_column_width=True)
+
 
 # WEBCAM REAL-TIME
 elif source_type == "Webcam":
