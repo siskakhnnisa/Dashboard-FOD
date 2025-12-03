@@ -84,61 +84,64 @@ elif source_type == "Upload Video":
 
     if vid_file:
 
-        # Save temp file
+        # simpan sebagai file temporary
         if "video_path" not in st.session_state:
             tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
             tfile.write(vid_file.read())
             st.session_state.video_path = tfile.name
 
+        st.video(st.session_state.video_path)
+
+        # init state
+        if "video_running" not in st.session_state:
+            st.session_state.video_running = False
+
+        # tombol kontrol
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🚀 Mulai Deteksi Realtime"):
+                st.session_state.video_running = True
+        with col2:
+            if st.button("⏹️ Hentikan"):
+                st.session_state.video_running = False
+
+        # tempat menampilkan frame detection
         stframe = st.empty()
         fps_box = st.sidebar.empty()
         det_box = st.sidebar.empty()
 
-        cap = cv2.VideoCapture(st.session_state.video_path)
+        # simpan objek VideoCapture sekali saja!
+        if "cap" not in st.session_state:
+            st.session_state.cap = cv2.VideoCapture(st.session_state.video_path)
 
-        # Show preview
-        ret, frame = cap.read()
-        if ret:
-            st.image(frame, channels="BGR", caption="Preview Video")
+        # LOOP DETEKSI: dilakukan setiap rerun
+        if st.session_state.video_running:
 
-        start = st.button("🚀 Mulai Deteksi")
-        stop = st.button("⏹️ Stop Deteksi")
-
-        if start:
-            st.session_state.run_video = True
-
-        if stop:
-            st.session_state.run_video = False
-
-        # REALTIME LOOP (paling stabil)
-        while st.session_state.get("run_video", False):
-
+            cap = st.session_state.cap
             ret, frame = cap.read()
+
+            # video selesai → reset capture
             if not ret:
-                det_box.warning("Video selesai.")
-                st.session_state.run_video = False
-                break
+                fps_box.warning("Video selesai.")
+                st.session_state.cap.release()
+                del st.session_state.cap
+                st.session_state.video_running = False
+                st.stop()
 
-            t0 = time.time()
-
-            # YOLO inference
+            # deteksi YOLO
+            start = time.time()
             results = model.predict(frame, conf=confidence, verbose=False)
             annotated = results[0].plot()
+            fps = 1 / (time.time() - start)
 
-            fps = 1 / (time.time() - t0)
+            # tampilkan frame hasil deteksi
+            stframe.image(annotated, channels="BGR", use_column_width=True)
+            fps_box.info(f"FPS Realtime: **{fps:.2f}**")
+            det_box.success(f"Jumlah Deteksi: **{len(results[0].boxes)}**")
 
-            # Render smooth (tanpa patah)
-            stframe.image(annotated, channels="BGR", use_container_width=True)
-
-            fps_box.info(f"FPS: {fps:.2f}")
-            det_box.success(f"Deteksi: {len(results[0].boxes)}")
-
-            # beri streamlit waktu render (paling optimal)
+            # rerun script otomatis tanpa freeze
             time.sleep(0.001)
-
-        cap.release()
-
-
+            st.rerun()
 # WEBCAM REAL-TIME
 elif source_type == "Webcam":
     run = st.checkbox("Nyalakan Webcam")
