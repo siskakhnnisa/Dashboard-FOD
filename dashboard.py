@@ -84,68 +84,59 @@ elif source_type == "Upload Video":
 
     if vid_file:
 
-        # Simpan file sekali saja
-        if "video_temp_path" not in st.session_state:
+        # Simpan video
+        if "video_path" not in st.session_state:
             tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
             tfile.write(vid_file.read())
-            st.session_state.video_temp_path = tfile.name
+            st.session_state.video_path = tfile.name
+            st.session_state.cap = cv2.VideoCapture(st.session_state.video_path)
 
-        # PREVIEW GAMBAR PERTAMA
-        cap_preview = cv2.VideoCapture(st.session_state.video_temp_path)
-        ret, frame_preview = cap_preview.read()
-        cap_preview.release()
-        if ret:
-            st.image(frame_preview, channels="BGR", caption="Preview Video")
+        cap = st.session_state.cap
 
-        # Tombol
-        start = st.button("🚀 Mulai Deteksi Realtime")
+        # Preview
+        if "preview_done" not in st.session_state:
+            ret, frame = cap.read()
+            if ret:
+                st.image(frame, channels="BGR", caption="Preview Video")
+            st.session_state.preview_done = True
+
+        # Tombol Kontrol
+        start = st.button("🚀 Mulai Deteksi")
         stop = st.button("⏹️ Stop Deteksi")
 
-        stframe = st.empty()
-        fps_box = st.sidebar.empty()
-        det_box = st.sidebar.empty()
-
-        # Buka video sekali
         if start:
-            st.session_state.run_video = True
+            st.session_state.play = True
 
         if stop:
-            st.session_state.run_video = False
+            st.session_state.play = False
 
-        if "cap_video" not in st.session_state:
-            st.session_state.cap_video = cv2.VideoCapture(st.session_state.video_temp_path)
+        stframe = st.empty()
+        sidebar_fps = st.sidebar.empty()
+        sidebar_det = st.sidebar.empty()
 
-        # LOOP UTAMA (tanpa rerun)
-        while st.session_state.get("run_video", False):
+        # Jika play=True maka proses satu frame tiap rerun
+        if st.session_state.get("play", False):
 
-            cap = st.session_state.cap_video
             ret, frame = cap.read()
 
             if not ret:
-                det_box.warning("Video selesai.")
-                st.session_state.run_video = False
+                sidebar_det.warning("Video selesai.")
+                st.session_state.play = False
                 cap.release()
-                break
+            else:
+                t0 = time.time()
 
-            start_t = time.time()
+                results = model.predict(frame, conf=confidence, verbose=False)
+                annotated = results[0].plot()
 
-            # YOLO inference
-            results = model.predict(frame, conf=confidence, verbose=False)
-            annotated = results[0].plot()
+                fps = 1 / (time.time() - t0)
 
-            fps = 1 / (time.time() - start_t)
+                stframe.image(annotated, channels="BGR")
+                sidebar_fps.info(f"FPS: {fps:.2f}")
+                sidebar_det.success(f"Deteksi: {len(results[0].boxes)}")
 
-            # tampilkan frame stabil, tidak flicker
-            stframe.image(annotated, channels="BGR", use_column_width=True)
-
-            fps_box.info(f"FPS: {fps:.2f}")
-            det_box.success(f"Deteksi: {len(results[0].boxes)}")
-
-            # berikan waktu streamlit untuk render,
-            # namun cukup kecil agar tidak delay
-            time.sleep(0.001)
-
-        st.stop()
+                # Penting: panggil ulang diri sendiri tanpa loop
+                st.experimental_set_query_params(_=time.time())
 
 
 # WEBCAM REAL-TIME
