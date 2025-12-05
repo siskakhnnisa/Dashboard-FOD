@@ -72,13 +72,47 @@ if source_type == "Upload Image":
         img = Image.open(img_file)
         st.image(img, caption="Uploaded Image", use_column_width=True)
 
-        if st.button("🔍 Deteksi"):
+        # 🔥 Tambahan: Pilihan model
+        model_choice = st.radio(
+            "Pilih Model Deteksi",
+            ("Model 1", "Model 2", "Model 3"),
+            horizontal=True
+        )
+
+        # 🔥 Mapping model
+        if model_choice == "Model 1":
+            selected_model = load_model1()
+        elif model_choice == "Model 2":
+            selected_model = load_model2()
+        else:
+            selected_model = load_model3()
+
+        # Tombol Deteksi
+        if st.button("🔍 Deteksi dengan " + model_choice):
             with st.spinner("Detecting..."):
-                result = detect_image(img)
-                st.image(result, caption="Detection Result", use_column_width=True)
+
+                results = selected_model.predict(img, conf=confidence)
+                plotted = results[0].plot()
+
+                st.image(plotted, caption=f"Hasil Deteksi ({model_choice})", use_column_width=True)
+                st.sidebar.success(f"Total Deteksi: {len(results[0].boxes)}")
+
 
 
 # UPLOAD VIDEO
+
+@st.cache_resource
+def load_model1():
+    return YOLO("models/best.pt")
+
+@st.cache_resource
+def load_model2():
+    return YOLO("models/exp1_finetune.pt")
+
+@st.cache_resource
+def load_model3():
+    return YOLO("models/model_finetuning2_part1.pt")
+
 elif source_type == "Upload Video":
     vid_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
 
