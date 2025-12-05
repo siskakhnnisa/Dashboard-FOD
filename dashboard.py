@@ -74,7 +74,7 @@ elif source_type == "Upload Video":
         if ret:
             st.image(preview_frame, channels="BGR", caption="Preview Video")
 
-        st.markdown("### 🚀 Klik tombol di bawah untuk mulai deteksi video")
+        st.markdown("🚀 Klik tombol di bawah untuk mulai deteksi video")
         start_detection = st.button("Mulai Deteksi Video")
 
         if start_detection:
