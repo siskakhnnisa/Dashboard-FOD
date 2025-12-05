@@ -50,52 +50,15 @@ st.sidebar.header("⚙️ Pengaturan")
 confidence = st.sidebar.slider("Minimum Confidence", 0.1, 1.0, 0.5, 0.05)
 source_type = st.sidebar.radio("Pilih Input", ["Upload Image", "Upload Video", "Webcam"])
 
-
-@st.cache_resource
-def load_model1():
-    return YOLO("models/model1.pt")
-
-@st.cache_resource
-def load_model2():
-    return YOLO("models/model2.pt")
-
-@st.cache_resource
-def load_model3():
-    return YOLO("models/model3.pt")
-
-# UPLOAD IMAGE
 if source_type == "Upload Image":
     img_file = st.file_uploader("Upload gambar untuk dideteksi", type=["jpg", "jpeg", "png"])
-
     if img_file:
         img = Image.open(img_file)
         st.image(img, caption="Uploaded Image", use_column_width=True)
-
-        # 🔥 Tambahan: Pilihan model
-        model_choice = st.radio(
-            "Pilih Model Deteksi",
-            ("Model 1", "Model 2", "Model 3"),
-            horizontal=True
-        )
-
-        # 🔥 Mapping model
-        if model_choice == "Model 1":
-            selected_model = load_model1()
-        elif model_choice == "Model 2":
-            selected_model = load_model2()
-        else:
-            selected_model = load_model3()
-
-        # Tombol Deteksi
-        if st.button("🔍 Deteksi dengan " + model_choice):
+        if st.button("🔍 Deteksi"):
             with st.spinner("Detecting..."):
-
-                results = selected_model.predict(img, conf=confidence)
-                plotted = results[0].plot()
-
-                st.image(plotted, caption=f"Hasil Deteksi ({model_choice})", use_column_width=True)
-                st.sidebar.success(f"Total Deteksi: {len(results[0].boxes)}")
-
+                result = detect_image(img, confidence)
+                st.image(result, caption="Detection Result", use_column_width=True)
 
 elif source_type == "Upload Video":
     vid_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
@@ -161,3 +124,4 @@ elif source_type == "Webcam":
                 break
 
         cap.release()
+
