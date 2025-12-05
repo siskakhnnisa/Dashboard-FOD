@@ -83,8 +83,6 @@ elif source_type == "Upload Video":
     vid_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
 
     if vid_file:
-
-        # Simpan video ke file temporer
         tfile = tempfile.NamedTemporaryFile(delete=False)
         tfile.write(vid_file.read())
         video_path = tfile.name
@@ -93,46 +91,43 @@ elif source_type == "Upload Video":
         cap_preview = cv2.VideoCapture(video_path)
         ret, preview_frame = cap_preview.read()
         cap_preview.release()
+
         if ret:
             st.image(preview_frame, channels="BGR", caption="Preview Video")
 
-        st.markdown("### 🚀 Klik tombol di bawah untuk mulai deteksi video")
         start_detection = st.button("Mulai Deteksi Video")
 
         if start_detection:
-
             stframe = st.empty()
-            sidebar_det = st.sidebar.empty()
-            sidebar_fps = st.sidebar.empty()
+            side_det = st.sidebar.empty()
+            side_fps = st.sidebar.empty()
+
+            # Tombol stop
+            stop_button = st.sidebar.button("Stop Video")
 
             cap = cv2.VideoCapture(video_path)
 
-            while True:
+            while cap.isOpened():
+                if stop_button:
+                    break
+
                 ret, frame = cap.read()
                 if not ret:
-                    sidebar_det.warning("Video selesai.")
+                    side_det.warning("Video selesai.")
                     break
 
                 t0 = time.time()
-
-                # YOLO inference
                 results = model.predict(frame, conf=confidence, verbose=False)
                 annotated_frame = results[0].plot()
-
                 fps = 1 / (time.time() - t0)
 
-                # Render frame stabil
                 stframe.image(annotated_frame, channels="BGR")
+                side_det.success(f"Deteksi: {len(results[0].boxes)}")
+                side_fps.info(f"FPS: {fps:.2f}")
 
-                sidebar_det.success(f"Deteksi: {len(results[0].boxes)}")
-                sidebar_fps.info(f"FPS: {fps:.2f}")
+                time.sleep(0.01)
 
-                # Biarkan Streamlit refresh (WAJIB)
-                time.sleep(0.001)
-
-                # Force re-render frame-by-frame
-                st.experimental_rerun()
-
+            cap.release()
 
 # WEBCAM REAL-TIME
 elif source_type == "Webcam":
