@@ -134,7 +134,6 @@ elif source_type == "Upload Video":
                 st.experimental_rerun()
 
 
-
 # WEBCAM REAL-TIME
 elif source_type == "Webcam":
     run = st.checkbox("Nyalakan Webcam")
