@@ -50,15 +50,41 @@ st.sidebar.header("⚙️ Pengaturan")
 confidence = st.sidebar.slider("Minimum Confidence", 0.1, 1.0, 0.5, 0.05)
 source_type = st.sidebar.radio("Pilih Input", ["Upload Image", "Upload Video", "Webcam"])
 
+MODEL_PATHS = {
+    "Model 1": "models/exp1_finetune.pt",
+    "Model 2": "models/exp2_finetune.pt",
+    "Model 3": "models/exp3_finetune.pt",
+}
+
+@st.cache_resource
+def load_model(path):
+    return YOLO(path)
+
+def detect_image(chosen_model, img, conf):
+    results = chosen_model.predict(img, conf=conf)
+    plotted = results[0].plot()
+    num_boxes = len(results[0].boxes)
+    st.sidebar.success(f"Total Deteksi: {num_boxes}")
+    return plotted
+
+
 if source_type == "Upload Image":
+    # ==== Tambahan: Pilih Model ====
+    st.subheader("Pilih Model Deteksi")
+    model_choice = st.selectbox("Model yang digunakan:", list(MODEL_PATHS.keys()))
+    chosen_model = load_model(MODEL_PATHS[model_choice])
+
     img_file = st.file_uploader("Upload gambar untuk dideteksi", type=["jpg", "jpeg", "png"])
+
     if img_file:
         img = Image.open(img_file)
         st.image(img, caption="Uploaded Image", use_column_width=True)
-        if st.button("🔍 Deteksi"):
+
+        if st.button("🔍 Deteksi Menggunakan " + model_choice):
             with st.spinner("Detecting..."):
-                result = detect_image(img, confidence)
+                result = detect_image(chosen_model, img, confidence)
                 st.image(result, caption="Detection Result", use_column_width=True)
+
 
 elif source_type == "Upload Video":
     vid_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
