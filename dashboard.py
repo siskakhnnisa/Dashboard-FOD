@@ -13,7 +13,6 @@ st.set_page_config(
     layout="wide",
 )
 
-
 # Custom CSS
 st.markdown("""
     <style>
@@ -33,15 +32,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-
-# Load Model
+# Load model only once
 @st.cache_resource
 def load_model():
-    model = YOLO("models/model_finetuning2_part1.pt")
-    return model
+    return YOLO("models/model_finetuning2_part1.pt")
 
 model = load_model()
-
 
 # Title UI
 st.markdown('<p class="title">🛰️ FOD Detection Dashboard</p>', unsafe_allow_html=True)
@@ -54,17 +50,14 @@ source_type = st.sidebar.radio("Pilih Input", ["Upload Image", "Upload Video", "
 
 
 # FUNCTION: Convert frame with detection
-
 def detect_image(img):
     results = model.predict(img, conf=confidence)
     plotted = results[0].plot()
-    num_boxes = len(results[0].boxes)
-    st.sidebar.success(f"Total Deteksi: {num_boxes}")
+    st.sidebar.success(f"Total Deteksi: {len(results[0].boxes)}")
     return plotted
 
 
 # UPLOAD IMAGE
-
 if source_type == "Upload Image":
     img_file = st.file_uploader("Upload gambar untuk dideteksi", type=["jpg", "jpeg", "png"])
 
@@ -129,6 +122,7 @@ elif source_type == "Upload Video":
 
             cap.release()
 
+
 # WEBCAM REAL-TIME
 elif source_type == "Webcam":
     run = st.checkbox("Nyalakan Webcam")
@@ -137,22 +131,24 @@ elif source_type == "Webcam":
         stframe = st.empty()
         cap = cv2.VideoCapture(0)
 
-        while True:
+        stop_webcam = st.sidebar.button("Stop Webcam")
+
+        while cap.isOpened():
+            if stop_webcam:
+                break
+
             ret, frame = cap.read()
             if not ret:
                 break
 
-            start = time.time()
+            t0 = time.time()
             results = model(frame, conf=confidence)
             annotated = results[0].plot()
-            end = time.time()
-
-            fps = 1 / (end - start)
+            fps = 1 / (time.time() - t0)
 
             stframe.image(annotated, channels="BGR", use_column_width=True)
             st.sidebar.write(f"FPS: {fps:.2f}")
 
-            if not st.checkbox("Continous Detection", value=True):
-                break
+            time.sleep(0.01)
 
         cap.release()
