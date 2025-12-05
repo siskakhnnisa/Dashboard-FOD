@@ -51,9 +51,9 @@ confidence = st.sidebar.slider("Minimum Confidence", 0.1, 1.0, 0.5, 0.05)
 source_type = st.sidebar.radio("Pilih Input", ["Upload Image", "Upload Video", "Webcam"])
 
 MODEL_PATHS = {
-    "Model 1": "models/best.pt",
-    "Model 2": "models/exp1_finetune.pt",
-    "Model 3": "models/model_finetuning2_part1.pt",
+    "Model Dataset Dummy": "models/best.pt",
+    "Model Finetuning Model Dummy 80": "models/exp1_finetune.pt",
+    "Model Finetuning Model Dummy 100": "models/model_finetuning2_part1.pt",
 }
 
 @st.cache_resource
