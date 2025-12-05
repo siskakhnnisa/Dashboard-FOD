@@ -37,7 +37,7 @@ st.markdown("""
 # Load Model
 @st.cache_resource
 def load_model():
-    model = YOLO("models/best.pt")
+    model = YOLO("models/exp1_finetune.pt")
     return model
 
 model = load_model()
@@ -83,27 +83,55 @@ elif source_type == "Upload Video":
     vid_file = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
 
     if vid_file:
+
+        # Simpan video ke file temporer
         tfile = tempfile.NamedTemporaryFile(delete=False)
         tfile.write(vid_file.read())
+        video_path = tfile.name
 
-        st.video(tfile.name)
+        # Preview frame pertama
+        cap_preview = cv2.VideoCapture(video_path)
+        ret, preview_frame = cap_preview.read()
+        cap_preview.release()
+        if ret:
+            st.image(preview_frame, channels="BGR", caption="Preview Video")
 
-        if st.button("🚀 Jalankan Deteksi Video"):
+        st.markdown("### 🚀 Klik tombol di bawah untuk mulai deteksi video")
+        start_detection = st.button("Mulai Deteksi Video")
+
+        if start_detection:
+
             stframe = st.empty()
-            cap = cv2.VideoCapture(tfile.name)
+            sidebar_det = st.sidebar.empty()
+            sidebar_fps = st.sidebar.empty()
+
+            cap = cv2.VideoCapture(video_path)
 
             while True:
                 ret, frame = cap.read()
                 if not ret:
+                    sidebar_det.warning("Video selesai.")
                     break
 
-                results = model(frame, conf=confidence)
-                annotated = results[0].plot()
+                t0 = time.time()
 
-                stframe.image(annotated, channels="BGR", use_column_width=True)
+                # YOLO inference
+                results = model.predict(frame, conf=confidence, verbose=False)
+                annotated_frame = results[0].plot()
 
-            cap.release()
+                fps = 1 / (time.time() - t0)
 
+                # Render frame stabil
+                stframe.image(annotated_frame, channels="BGR")
+
+                sidebar_det.success(f"Deteksi: {len(results[0].boxes)}")
+                sidebar_fps.info(f"FPS: {fps:.2f}")
+
+                # Biarkan Streamlit refresh (WAJIB)
+                time.sleep(0.001)
+
+                # Force re-render frame-by-frame
+                st.experimental_rerun()
 
 # WEBCAM REAL-TIME
 elif source_type == "Webcam":
